@@ -1,5 +1,12 @@
 import asyncio
-from playwright.async_api import async_playwright, Playwright, Browser, Page, BrowserContext
+from playwright.async_api import (
+    async_playwright,
+    Playwright,
+    Browser,
+    Page,
+    BrowserContext,
+    ViewportSize,
+)
 from typing import Optional, Callable, Any
 from loguru import logger
 
@@ -42,8 +49,6 @@ class PlaywrightManager:
                     # 新增性能优化选项
                     "ignore_default_args": ["--enable-blink-features=IdleDetection"],
                 }
-                if settings.browser_channel:
-                    launch_kwargs["channel"] = settings.browser_channel
 
                 logger.info(f"Launching browser with kwargs: {launch_kwargs}")
                 self._browser = await self._playwright.chromium.launch(**launch_kwargs)
@@ -63,7 +68,7 @@ class PlaywrightManager:
     async def _initialize_context_pool(self):
         """初始化 context 连接池"""
         try:
-            initial_pool_size = min(3, self._max_pool_size)  # 初始创建3个context
+            initial_pool_size = min(10, self._max_pool_size)  # 初始创建3个context
             for _ in range(initial_pool_size):
                 context = await self._create_new_context()
                 self._context_pool.append(context)
@@ -75,12 +80,16 @@ class PlaywrightManager:
 
     async def _create_new_context(self) -> BrowserContext:
         """创建新的 browser context"""
+        viewport_size = ViewportSize(width=1280, height=720)
         context = await self._browser.new_context(
             user_agent=settings.user_agent,
             java_script_enabled=True,
             bypass_csp=True,
             ignore_https_errors=True,
             permissions=[],
+            device_scale_factor=1.0,
+            viewport=viewport_size,
+            locale="zh-CN"
         )
         return context
 
@@ -233,7 +242,6 @@ class PlaywrightManager:
                 # 设置页面超时和视口
                 page.set_default_timeout(settings.page_timeout)
                 page.set_default_navigation_timeout(settings.page_timeout)
-                await page.set_viewport_size({"width": settings.viewport_width, "height": settings.viewport_height})
 
                 # 优化页面性能
                 await page.add_init_script("""
