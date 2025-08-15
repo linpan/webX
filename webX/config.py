@@ -1,7 +1,6 @@
 from pydantic_settings import BaseSettings
 
 
-
 class Settings(BaseSettings):
     browser_headless: bool = True
     max_concurrency: int = 5
@@ -13,8 +12,10 @@ class Settings(BaseSettings):
     page_timeout: int = 5000  # 5s
     # 扩展阻止的资源类型
     blocked_resources: tuple = (
-    )
-    blocked_urls: tuple = (
+        "image",
+        "media",
+        "font",
+        "stylesheet",
     )
     wait_until: str = "domcontentloaded"  # 'load', 'domcontentloaded', 'networkidle'
     launch_args: tuple = (
@@ -53,6 +54,7 @@ class Settings(BaseSettings):
         "--disable-client-side-phishing-detection",
     )
     searxng_url: str = "http://47.79.94.250:8080/search"
+    allowed_domains: tuple = (".cn", ".com")
 
 
 settings = Settings()

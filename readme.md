@@ -12,3 +12,7 @@ format: str = "json"
 lang: str = "zh-CN"
 safesearch: str = "2" # StrictMode 2
 engines: str = "google" # 'google,bing'
+
+
+# test url
+https://www.bankofbeijing.com.cn/personal/linkDetails?id=1754810752888143874

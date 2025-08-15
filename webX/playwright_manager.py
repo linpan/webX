@@ -10,8 +10,8 @@ settings = Settings()
 
 class PlaywrightManager:
     def __init__(self):
-        self._playwright: Playwright |None = None
-        self._browser:  Browser |None = None
+        self._playwright: Playwright | None = None
+        self._browser: Browser | None = None
         self._semaphore = asyncio.Semaphore(settings.max_concurrency)
         self._started = False
         self._start_lock = asyncio.Lock()
@@ -21,7 +21,7 @@ class PlaywrightManager:
         self._pool_lock = asyncio.Lock()
         self._max_pool_size = min(settings.max_concurrency * 2, 10)  # 池大小为并发数的2倍，最多10个
         self._context_usage_count: dict[BrowserContext, int] = {}  # 跟踪每个context的使用次数
-        self._max_context_reuse = 10 # 每个context最多复用10次后重建
+        self._max_context_reuse = 10  # 每个context最多复用10次后重建
 
     async def start(self):
         # 启动过程的原子性
@@ -93,8 +93,10 @@ class PlaywrightManager:
 
                 # 检查context是否还有效且没有超过复用次数
                 try:
-                    if (context not in self._context_usage_count or
-                        self._context_usage_count[context] < self._max_context_reuse):
+                    if (
+                        context not in self._context_usage_count
+                        or self._context_usage_count[context] < self._max_context_reuse
+                    ):
                         return context
                     else:
                         # 超过复用次数，关闭并创建新的
@@ -177,13 +179,7 @@ class PlaywrightManager:
     async def _handle_route(self, route, request):
         """处理资源拦截的路由函数 - 必须是异步函数"""
         resource_type = request.resource_type
-        url = request.url
-
-        # 更激进的资源过滤
         if resource_type in settings.blocked_resources:
-            logger.debug(f"阻止加载 {resource_type}: {url}")
-            await route.abort()
-        elif any(blocked in url.lower() for blocked in settings.blocked_urls):
             await route.abort()
         else:
             await route.continue_()
@@ -237,10 +233,7 @@ class PlaywrightManager:
                 # 设置页面超时和视口
                 page.set_default_timeout(settings.page_timeout)
                 page.set_default_navigation_timeout(settings.page_timeout)
-                await page.set_viewport_size({
-                    "width": settings.viewport_width,
-                    "height": settings.viewport_height
-                })
+                await page.set_viewport_size({"width": settings.viewport_width, "height": settings.viewport_height})
 
                 # 优化页面性能
                 await page.add_init_script("""
@@ -252,13 +245,15 @@ class PlaywrightManager:
                 """)
 
                 # 应用资源拦截
-                await page.route('**/*', self._handle_route)
+                await page.route("**/*", self._handle_route)
 
                 # 设置更快的页面加载策略
-                await page.set_extra_http_headers({
-                    'Accept-Encoding': 'gzip, deflate, br',
-                    'Cache-Control': 'no-cache',
-                })
+                await page.set_extra_http_headers(
+                    {
+                        "Accept-Encoding": "gzip, deflate, br",
+                        "Cache-Control": "no-cache",
+                    }
+                )
 
                 coro_page = func(page)
                 return await asyncio.wait_for(coro_page, timeout=timeout)

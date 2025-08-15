@@ -26,7 +26,6 @@ async def lifespan(app: FastAPI):
         logger.error(f"Error stopping playwright: {e}")
 
 
-
 app = FastAPI(lifespan=lifespan, default_response_class=ORJSONResponse)
 
 app.add_middleware(GZipMiddleware, minimum_size=2048)

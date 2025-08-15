@@ -28,9 +28,9 @@ class SearchMode(enum.Enum):
     def context_size(self) -> int:
         match self:
             case SearchMode.low:
-                return 100
-            case SearchMode.medium:
                 return 1000
+            case SearchMode.medium:
+                return 2000
             case SearchMode.high:
                 return 3000
             case SearchMode.ultra:
