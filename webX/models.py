@@ -45,7 +45,7 @@ class SearchSnippets(TypedDict, total=False):
     url: str | None
     title: str | None
     content: str | None
-    score: float | None
+    score: str | None
 
 
 class SearchResponse(BaseModel):

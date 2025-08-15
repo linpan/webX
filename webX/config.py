@@ -16,7 +16,7 @@ class Settings(BaseSettings):
         "font",
         "stylesheet",
         "websocket",
-        "manifest"
+        "manifest",
     )
     wait_until: str = "domcontentloaded"  # 'load', 'domcontentloaded', 'networkidle'
     launch_args: tuple = (

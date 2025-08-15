@@ -17,4 +17,8 @@ def check_allow_domain(url: str) -> bool:
 
 
 if __name__ == "__main__":
-    print(check_allow_domain("https://www.zaobao.com/realtime/china/story20250815-7357116"))
+    print(
+        check_allow_domain(
+            "https://www.zaobao.com/realtime/china/story20250815-7357116"
+        )
+    )

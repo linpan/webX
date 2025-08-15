@@ -25,9 +25,11 @@ class FetchResult(BaseModel):
     error: str | None = None
 
 
-async def fetch_with_playwright(url: str, mode: SearchMode = SearchMode.medium) -> SearchSnippets:
+async def fetch_with_playwright(
+    url: str, mode: SearchMode = SearchMode.medium
+) -> SearchSnippets:
     try:
-        print("fetching use playwright")
+        logger.debug("fetching use playwright")
 
         async def work(page):
             await page.goto(url, timeout=5000, wait_until="domcontentloaded")
@@ -61,11 +63,20 @@ def run_parser_as_low(data) -> list[SearchSnippets]:
     results: list[SearchSnippets] = []
 
     for item in data:
-        results.append({"url": item["url"], "title": item["title"], "content": item["content"], "score": item["score"]})
+        results.append(
+            {
+                "url": item["url"],
+                "title": item["title"],
+                "content": item["content"],
+                "score": f"{item['score']:.3f}",
+            }
+        )
     return results
 
 
-async def fetch_html_content(url: str, mode: SearchMode = SearchMode.medium) -> SearchSnippets:
+async def fetch_html_content(
+    url: str, mode: SearchMode = SearchMode.medium
+) -> SearchSnippets:
     """
     use aiohttp sync to fetch html content
     :param url:
@@ -100,12 +111,18 @@ async def run_parser_as_other(data, mode: SearchMode) -> list[SearchSnippets]:
         if check_allow_domain(url):
             allowed_urls.append(url)
 
-    html_urls = [url for url in urls if url.endswith((".shtml", ".html", ".htm", ".xhtml"))]
+    html_urls = [
+        url for url in urls if url.endswith((".shtml", ".html", ".htm", ".xhtml"))
+    ]
     print(f"html_urls: {html_urls}")
     js_urls = list(set(allowed_urls) - set(html_urls))
     print("js_urls:", js_urls)
     # slow mode doesn't use playwright
-    tasks = [fetch_with_playwright(url, mode=mode) for url in js_urls if mode != SearchMode.low]
+    tasks = [
+        fetch_with_playwright(url, mode=mode)
+        for url in js_urls
+        if mode != SearchMode.low
+    ]
     print("tasks:", tasks)
     for url in html_urls:
         tasks.append(fetch_html_content(url, mode=mode))
@@ -114,17 +131,28 @@ async def run_parser_as_other(data, mode: SearchMode) -> list[SearchSnippets]:
 
 
 @search_router.get("/search")
-async def search_view(q: str = Query(default="K字签证"), mode: Annotated[SearchMode, Query()] = SearchMode.low):
+async def search_view(
+    q: str = Query(default="K字签证"),
+    mode: Annotated[SearchMode, Query()] = SearchMode.low,
+):
     """
     use aiohttp sync to fetch searxng search results
     """
-    params: SearchParams = {"q": q, "lang": "zh-CN", "format": "json", "safesearch": "2", "engines": "google"}
+    params: SearchParams = {
+        "q": q,
+        "lang": "zh-CN",
+        "format": "json",
+        "safesearch": "2",
+        "engines": "google",
+    }
     connector = TCPConnector(limit=100, limit_per_host=10, ssl=False)
     import time
 
     start_ts = time.time()
     try:
-        async with aiohttp.ClientSession(connector=connector, timeout=ClientTimeout(total=5.0)) as session:
+        async with aiohttp.ClientSession(
+            connector=connector, timeout=ClientTimeout(total=5.0)
+        ) as session:
             async with session.get(settings.searxng_url, params=params) as resp:
                 resp.raise_for_status()
                 data = await resp.json()
