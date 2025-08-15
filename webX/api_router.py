@@ -75,16 +75,12 @@ def run_parser_as_low(data) -> list[SearchSnippets]:
 
 
 async def fetch_html_content(
-    url: str, mode: SearchMode = SearchMode.medium
+    session: aiohttp.ClientSession, url: str, mode: SearchMode = SearchMode.medium
 ) -> SearchSnippets:
-    """
-    use aiohttp sync to fetch html content
-    :param url:
-    :return:
-    """
-    timeout = ClientTimeout(total=0.7)
-    async with aiohttp.ClientSession(timeout=timeout) as session:
-        async with session.get(url, allow_redirects=True) as response:
+    try:
+        async with session.get(
+            url, allow_redirects=True, timeout=ClientTimeout(total=0.7)
+        ) as response:
             html = await response.text(encoding="utf-8") or ""
             cleaned_body = trafilatura.extract(
                 html,
@@ -97,6 +93,9 @@ async def fetch_html_content(
             )
             content = cleaned_body.strip()[: mode.context_size]
             return SearchSnippets(url=url, title="", content=content)
+    except Exception as e:
+        logger.error(f"获取 URL {url} 时出错: {e}")
+        return SearchSnippets(url=url, title="", content="")
 
 
 async def run_parser_as_other(data, mode: SearchMode) -> list[SearchSnippets]:
@@ -124,8 +123,14 @@ async def run_parser_as_other(data, mode: SearchMode) -> list[SearchSnippets]:
         if mode != SearchMode.low
     ]
     print("tasks:", tasks)
-    for url in html_urls:
-        tasks.append(fetch_html_content(url, mode=mode))
+    if html_urls:
+        timeout = ClientTimeout(total=0.7)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            html_tasks = [
+                fetch_html_content(session, url, mode=mode) for url in html_urls
+            ]
+            tasks.extend(html_tasks)
+
     results = await asyncio.gather(*tasks, return_exceptions=True)
     return results
 
