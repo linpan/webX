@@ -107,14 +107,14 @@ async def run_parser_as_other(data, mode: SearchMode) -> list[SearchSnippets]:
     html_urls, include, shtml, html, html
     """
     snippets = [data for data in data if data["url"]]
-    
+
     allowed_items = []
     for item in snippets:
         url = item["url"]
         if check_allow_domain(url):
             allowed_items.append(item)
 
-    tasks = [fetch_with_playwright(item, mode) for item in allowed_items[:6]]
+    tasks = [fetch_with_playwright(item, mode) for item in allowed_items[:5]]
 
     results = await asyncio.gather(*tasks, return_exceptions=True)
     return results
