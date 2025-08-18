@@ -1,6 +1,7 @@
 from urllib.parse import urlparse
 from typing import Optional
-
+import time
+from functools import wraps
 from webX.config import settings
 
 
@@ -55,5 +56,33 @@ def check_allow_domain(url: str) -> bool:
     return False
 
 
+
+
+
+def timeit_sync(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        start_time = time.time()
+        result = func(*args, **kwargs)
+        end_time = time.time()
+        print(f"函数 {func.__name__} 执行耗时: {end_time - start_time:.4f} 秒")
+        return result
+
+    return wrapper
+
+
+# 示例使用
+@timeit_sync
+def sync_example():
+    time.sleep(1)  # 模拟耗时操作
+    return "同步函数完成"
+
+
+print(sync_example())
+
 if __name__ == "__main__":
-    print(check_allow_domain("https://air.tsinghua.edu.cn/__local/A/F3/79/CC9A0C81875F8B35A4733E36A57_BD4E1211_324F1.pdf"))
+    print(
+        check_allow_domain(
+            "https://air.tsinghua.edu.cn/__local/A/F3/79/CC9A0C81875F8B35A4733E36A57_BD4E1211_324F1.pdf"
+        )
+    )

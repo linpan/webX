@@ -3,7 +3,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     browser_headless: bool = True
-    max_concurrency: int = 5
+    max_concurrency: int = 3
 
     user_agent: str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.7258.68 Safari/537.36"
     viewport_width: int = 1280
@@ -60,7 +60,15 @@ class Settings(BaseSettings):
     )
     searxng_url: str = "http://47.79.94.250:8080/search"
     allowed_domains: tuple = ("cn", "com", "org", "gov")
-    ip_blacklist: tuple = ("bilibili.com", "youtube.com", "facebook.com", "douyin.com", "x.com", "huaweicloud", "zhihu")
+    ip_blacklist: tuple = (
+        "bilibili.com",
+        "youtube.com",
+        "facebook.com",
+        "douyin.com",
+        "x.com",
+        "huaweicloud",
+        "zhihu",
+    )
 
 
 settings = Settings()

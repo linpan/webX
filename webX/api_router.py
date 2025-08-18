@@ -13,7 +13,7 @@ from aiohttp import TCPConnector
 
 from webX.models import SearchParams, SearchSnippets, SearchResponse, SearchMode
 from webX.playwright_manager import playwright_manager
-from webX.utils import check_allow_domain
+from webX.utils import check_allow_domain, timeit_sync
 
 search_router = APIRouter()
 
@@ -24,16 +24,18 @@ class FetchResult(BaseModel):
     content: str | None = None
     error: str | None = None
 
-
-async def fetch_with_playwright(url: str, mode: SearchMode = SearchMode.medium) -> SearchSnippets:
+@timeit_sync
+async def fetch_with_playwright(item: dict, mode: SearchMode = SearchMode.medium) -> SearchSnippets:
+    url = item["url"]
     try:
-        logger.debug("fetching use playwright")
+
+        logger.debug(f"fetching use playwright: url: {url}")
 
         async def work(page):
-            await page.goto(url, timeout=5_000, wait_until="domcontentloaded")
-            await page.wait_for_load_state("domcontentloaded")
+            await page.goto(url, timeout=18_000, wait_until="domcontentloaded")
             title = await page.title()
             html = await page.content()
+
             cleaned_body = trafilatura.extract(
                 html,
                 url=url,
@@ -43,6 +45,7 @@ async def fetch_with_playwright(url: str, mode: SearchMode = SearchMode.medium) 
                 include_comments=False,
                 favor_recall=True,  # 更偏向召回，适合通用页面
             )
+            logger.info(f"fetch  {url} content: {cleaned_body[:100]}")
 
             if not cleaned_body:
                 # 回退：若抽取失败，退回到 body.inner_text()
@@ -53,8 +56,9 @@ async def fetch_with_playwright(url: str, mode: SearchMode = SearchMode.medium) 
             return SearchSnippets(url=url, title=title, content=content)
 
         return await playwright_manager.run_in_page(work)
-    except Exception:
-        return SearchSnippets(url=url, title="", content="")
+    except Exception as e:
+        logger.error(f"⚠️ Error fetching url: {url}, error: {e}")
+        return SearchSnippets(url=url, title=item.get("title",'-'), content=item.get("content",'-'))
 
 
 def run_parser_as_low(data) -> list[SearchSnippets]:
@@ -72,7 +76,9 @@ def run_parser_as_low(data) -> list[SearchSnippets]:
     return results
 
 
-async def fetch_html_content(url: str, mode: SearchMode = SearchMode.medium) -> SearchSnippets:
+async def fetch_html_content(
+    url: str, mode: SearchMode = SearchMode.medium
+) -> SearchSnippets:
     """
     use aiohttp sync to fetch html content
     :param url:
@@ -100,14 +106,15 @@ async def run_parser_as_other(data, mode: SearchMode) -> list[SearchSnippets]:
     urls exclude file types: like pdf, docx, excel
     html_urls, include, shtml, html, html
     """
-    urls = [data["url"] for data in data if data["url"]]
-
-    allowed_urls = []
-    for url in urls:
+    snippets = [data for data in data if data["url"]]
+    
+    allowed_items = []
+    for item in snippets:
+        url = item["url"]
         if check_allow_domain(url):
-            allowed_urls.append(url)
+            allowed_items.append(item)
 
-    tasks = [fetch_with_playwright(url, mode) for url in allowed_urls]
+    tasks = [fetch_with_playwright(item, mode) for item in allowed_items]
 
     results = await asyncio.gather(*tasks, return_exceptions=True)
     return results
@@ -133,7 +140,9 @@ async def search_view(
 
     start_ts = time.time()
     try:
-        async with aiohttp.ClientSession(connector=connector, timeout=ClientTimeout(total=5.0)) as session:
+        async with aiohttp.ClientSession(
+            connector=connector, timeout=ClientTimeout(total=5.0)
+        ) as session:
             async with session.get(settings.searxng_url, params=params) as resp:
                 resp.raise_for_status()
                 data = await resp.json()
