@@ -25,14 +25,12 @@ class FetchResult(BaseModel):
     error: str | None = None
 
 
-async def fetch_with_playwright(
-    url: str, mode: SearchMode = SearchMode.medium
-) -> SearchSnippets:
+async def fetch_with_playwright(url: str, mode: SearchMode = SearchMode.medium) -> SearchSnippets:
     try:
         logger.debug("fetching use playwright")
 
         async def work(page):
-            await page.goto(url, timeout=5000, wait_until="domcontentloaded")
+            await page.goto(url, timeout=5_000, wait_until="domcontentloaded")
             await page.wait_for_load_state("domcontentloaded")
             title = await page.title()
             html = await page.content()
@@ -74,13 +72,15 @@ def run_parser_as_low(data) -> list[SearchSnippets]:
     return results
 
 
-async def fetch_html_content(
-    session: aiohttp.ClientSession, url: str, mode: SearchMode = SearchMode.medium
-) -> SearchSnippets:
-    try:
-        async with session.get(
-            url, allow_redirects=True, timeout=ClientTimeout(total=0.7)
-        ) as response:
+async def fetch_html_content(url: str, mode: SearchMode = SearchMode.medium) -> SearchSnippets:
+    """
+    use aiohttp sync to fetch html content
+    :param url:
+    :return:
+    """
+    timeout = ClientTimeout(total=0.82)
+    async with aiohttp.ClientSession(timeout=timeout) as session:
+        async with session.get(url, allow_redirects=True) as response:
             html = await response.text(encoding="utf-8") or ""
             cleaned_body = trafilatura.extract(
                 html,
@@ -93,9 +93,6 @@ async def fetch_html_content(
             )
             content = cleaned_body.strip()[: mode.context_size]
             return SearchSnippets(url=url, title="", content=content)
-    except Exception as e:
-        logger.error(f"获取 URL {url} 时出错: {e}")
-        return SearchSnippets(url=url, title="", content="")
 
 
 async def run_parser_as_other(data, mode: SearchMode) -> list[SearchSnippets]:
@@ -110,26 +107,28 @@ async def run_parser_as_other(data, mode: SearchMode) -> list[SearchSnippets]:
         if check_allow_domain(url):
             allowed_urls.append(url)
 
-    html_urls = [
-        url for url in urls if url.endswith((".shtml", ".html", ".htm", ".xhtml"))
-    ]
+    html_urls = [url for url in urls if url.endswith((".shtml", ".html", ".htm", ".xhtml"))]
     print(f"html_urls: {html_urls}")
     js_urls = list(set(allowed_urls) - set(html_urls))
     print("js_urls:", js_urls)
-    # slow mode doesn't use playwright
-    tasks = [
-        fetch_with_playwright(url, mode=mode)
-        for url in js_urls
-        if mode != SearchMode.low
-    ]
-    print("tasks:", tasks)
-    if html_urls:
-        timeout = ClientTimeout(total=0.7)
-        async with aiohttp.ClientSession(timeout=timeout) as session:
-            html_tasks = [
-                fetch_html_content(session, url, mode=mode) for url in html_urls
-            ]
-            tasks.extend(html_tasks)
+    # 使用清晰的if-elif-else结构
+    if mode == SearchMode.high:
+        # 高质量模式使用playwright获取所有允许的URL
+        tasks = [fetch_with_playwright(url, mode=mode) for url in allowed_urls]
+    elif mode == SearchMode.low:
+        # 低质量模式只获取HTML页面的内容
+        tasks = [fetch_html_content(url, mode=mode) for url in html_urls]
+    elif mode == SearchMode.medium or mode == SearchMode.ultra:
+        # 中等质量和超高质量模式
+        tasks = []
+        for url in html_urls:
+            tasks.append(fetch_html_content(url, mode=mode))
+        # 为JS URLs使用playwright
+        for url in js_urls:
+            tasks.append(fetch_with_playwright(url, mode=mode))
+    else:
+        # 其他可能的模式默认处理
+        tasks = [fetch_with_playwright(url, mode=mode) for url in allowed_urls]
 
     results = await asyncio.gather(*tasks, return_exceptions=True)
     return results
@@ -150,14 +149,12 @@ async def search_view(
         "safesearch": "2",
         "engines": "google",
     }
-    connector = TCPConnector(limit=100, limit_per_host=10, ssl=False)
+    connector = TCPConnector(limit=100, limit_per_host=15, ssl=False)
     import time
 
     start_ts = time.time()
     try:
-        async with aiohttp.ClientSession(
-            connector=connector, timeout=ClientTimeout(total=5.0)
-        ) as session:
+        async with aiohttp.ClientSession(connector=connector, timeout=ClientTimeout(total=5.0)) as session:
             async with session.get(settings.searxng_url, params=params) as resp:
                 resp.raise_for_status()
                 data = await resp.json()
