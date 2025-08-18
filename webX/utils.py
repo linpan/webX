@@ -32,7 +32,8 @@ def check_allow_domain(url: str) -> bool:
     hostname = _extract_hostname(url)
     if not hostname:
         return False
-
+    if url.endswith(".pdf") or url.endswith(".docx") or url.endswith(".xlsx"):
+        return False
     # 黑名单：如果黑名单中的任一条是 hostname 的后缀或子串，则拒绝
     for blocked in settings.ip_blacklist:
         blocked_normalized = blocked.lower()
@@ -55,4 +56,4 @@ def check_allow_domain(url: str) -> bool:
 
 
 if __name__ == "__main__":
-    print(check_allow_domain("https://login-cpm-xt.bankofbeijing.com.cn/"))
+    print(check_allow_domain("https://air.tsinghua.edu.cn/__local/A/F3/79/CC9A0C81875F8B35A4733E36A57_BD4E1211_324F1.pdf"))

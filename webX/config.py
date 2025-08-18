@@ -60,7 +60,7 @@ class Settings(BaseSettings):
     )
     searxng_url: str = "http://47.79.94.250:8080/search"
     allowed_domains: tuple = ("cn", "com", "org", "gov")
-    ip_blacklist: tuple = ("bilibili.com", "youtube.com", "facebook.com", "douyin.com", "x.com", "huaweicloud", "video")
+    ip_blacklist: tuple = ("bilibili.com", "youtube.com", "facebook.com", "douyin.com", "x.com", "huaweicloud", "zhihu")
 
 
 settings = Settings()
