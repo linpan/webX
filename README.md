@@ -15,4 +15,3 @@ engines: str = "google" # 'google,bing'
 
 
 # test url
-https://www.bankofbeijing.com.cn/personal/linkDetails?id=1754810752888143874
