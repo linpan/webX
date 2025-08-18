@@ -107,20 +107,8 @@ async def run_parser_as_other(data, mode: SearchMode) -> list[SearchSnippets]:
         if check_allow_domain(url):
             allowed_urls.append(url)
 
-    html_urls = [
-        url for url in urls if url.endswith((".shtml", ".html", ".htm", ".xhtml"))
-    ]
-    print(f"html_urls: {html_urls}")
-    js_urls = list(set(allowed_urls) - set(html_urls))
-    print("js_urls:", js_urls)
-    # slow mode doesn't use playwright
-    tasks = [
-        fetch_with_playwright(url, mode=mode)
-        for url in js_urls
-    ]
-    print("tasks:", tasks)
-    for url in html_urls:
-        tasks.append(fetch_html_content(url, mode=mode))
+    tasks = [fetch_with_playwright(url, mode) for url in allowed_urls]
+
     results = await asyncio.gather(*tasks, return_exceptions=True)
     return results
 
