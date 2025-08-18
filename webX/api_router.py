@@ -32,7 +32,7 @@ async def fetch_with_playwright(item: dict, mode: SearchMode = SearchMode.medium
         logger.debug(f"fetching use playwright: url: {url}")
 
         async def work(page):
-            await page.goto(url, timeout=18_000, wait_until="domcontentloaded")
+            await page.goto(url, timeout=25_000, wait_until="domcontentloaded")
             title = await page.title()
             html = await page.content()
 
@@ -114,7 +114,7 @@ async def run_parser_as_other(data, mode: SearchMode) -> list[SearchSnippets]:
         if check_allow_domain(url):
             allowed_items.append(item)
 
-    tasks = [fetch_with_playwright(item, mode) for item in allowed_items[:5]]
+    tasks = [fetch_with_playwright(item, mode) for item in allowed_items[:6]]
 
     results = await asyncio.gather(*tasks, return_exceptions=True)
     return results
