@@ -28,7 +28,7 @@ class PlaywrightManager:
         self._pool_lock = asyncio.Lock()
         self._max_pool_size = min(settings.max_concurrency * 2, 10)  # 池大小为并发数的2倍，最多10个
         self._context_usage_count: dict[BrowserContext, int] = {}  # 跟踪每个context的使用次数
-        self._max_context_reuse = 20  # 每个context最多复用20次后重建
+        self._max_context_reuse = 2  # 每个context最多复用20次后重建
 
     async def start(self):
         # 启动过程的原子性
