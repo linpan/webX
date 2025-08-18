@@ -26,13 +26,9 @@ class PlaywrightManager:
         # Context 连接池相关
         self._context_pool: list[BrowserContext] = []
         self._pool_lock = asyncio.Lock()
-        self._max_pool_size = min(
-            settings.max_concurrency * 2, 10
-        )  # 池大小为并发数的2倍，最多10个
-        self._context_usage_count: dict[
-            BrowserContext, int
-        ] = {}  # 跟踪每个context的使用次数
-        self._max_context_reuse = 10  # 每个context最多复用10次后重建
+        self._max_pool_size = min(settings.max_concurrency * 2, 10)  # 池大小为并发数的2倍，最多10个
+        self._context_usage_count: dict[BrowserContext, int] = {}  # 跟踪每个context的使用次数
+        self._max_context_reuse = 20  # 每个context最多复用20次后重建
 
     async def start(self):
         # 启动过程的原子性
@@ -77,9 +73,7 @@ class PlaywrightManager:
                 context = await self._create_new_context()
                 self._context_pool.append(context)
                 self._context_usage_count[context] = 0
-            logger.info(
-                f"Context pool initialized with {len(self._context_pool)} contexts"
-            )
+            logger.info(f"Context pool initialized with {len(self._context_pool)} contexts")
         except Exception as e:
             logger.error(f"Failed to initialize context pool: {e}")
             raise
@@ -140,9 +134,7 @@ class PlaywrightManager:
                 # 检查池大小限制
                 if len(self._context_pool) < self._max_pool_size:
                     self._context_pool.append(context)
-                    logger.debug(
-                        f"Context returned to pool, pool size: {len(self._context_pool)}"
-                    )
+                    logger.debug(f"Context returned to pool, pool size: {len(self._context_pool)}")
                 else:
                     # 池已满，关闭context
                     await context.close()
@@ -221,9 +213,7 @@ class PlaywrightManager:
             except Exception:
                 logger.exception("closing context failed")
 
-    async def run_in_page(
-        self, func: Callable[[Page], Any], timeout: Optional[float] = 30
-    ) -> Any:
+    async def run_in_page(self, func: Callable[[Page], Any], timeout: Optional[float] = 30) -> Any:
         """
         Acquire semaphore, create context+page, run func(page), ensure cleanup.
         func 可以是 async 函数。
