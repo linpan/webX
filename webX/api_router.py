@@ -15,7 +15,7 @@ from webX.models import SearchParams, SearchSnippets, SearchResponse, SearchMode
 from webX.playwright_manager import playwright_manager
 from webX.utils import check_allow_domain, timeit_sync
 
-search_router = APIRouter()
+search_router = APIRouter(prefix='/v1')
 
 
 class FetchResult(BaseModel):
