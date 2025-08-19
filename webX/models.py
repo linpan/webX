@@ -46,6 +46,8 @@ class SearchSnippets(TypedDict, total=False):
     title: str | None
     content: str | None
     score: str | None
+    error: str | None
+    publish_date: str | None
 
 
 class SearchResponse(BaseModel):

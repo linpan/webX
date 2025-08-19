@@ -24,19 +24,22 @@ class FetchResult(BaseModel):
     content: str | None = None
     error: str | None = None
 
-@timeit_sync
+
 async def fetch_with_playwright(item: dict, mode: SearchMode = SearchMode.medium) -> SearchSnippets:
     url = item["url"]
-    try:
+    import time
 
+    start_ts = time.time()
+    try:
         logger.debug(f"fetching use playwright: url: {url}")
 
+        @timeit_sync
         async def work(page):
             await page.goto(url, timeout=25_000, wait_until="domcontentloaded")
             title = await page.title()
             html = await page.content()
 
-            cleaned_body = trafilatura.extract(
+            result = trafilatura.bare_extraction(
                 html,
                 url=url,
                 include_links=False,
@@ -45,6 +48,9 @@ async def fetch_with_playwright(item: dict, mode: SearchMode = SearchMode.medium
                 include_comments=False,
                 favor_recall=True,  # 更偏向召回，适合通用页面
             )
+            title = result.title
+            cleaned_body = result.text
+            date = result.date
             logger.info(f"fetch  {url} content: {cleaned_body[:100]}")
 
             if not cleaned_body:
@@ -52,13 +58,13 @@ async def fetch_with_playwright(item: dict, mode: SearchMode = SearchMode.medium
                 cleaned_body = await page.locator("body").inner_text()
 
             content = cleaned_body.strip()[: mode.context_size]
-
-            return SearchSnippets(url=url, title=title, content=content)
+            logger.info(f"scrapy duration: {time.time() - start_ts:.2f}s")
+            return SearchSnippets(url=url, title=title, content=content, error=None, publish_date=date)
 
         return await playwright_manager.run_in_page(work)
     except Exception as e:
         logger.error(f"⚠️ Error fetching url: {url}, error: {e}")
-        return SearchSnippets(url=url, title=item.get("title",'-'), content=item.get("content",'-'))
+        return SearchSnippets(url=url, title=item.get("title", "-"), content=item.get("content", "-"))
 
 
 def run_parser_as_low(data) -> list[SearchSnippets]:
@@ -76,29 +82,35 @@ def run_parser_as_low(data) -> list[SearchSnippets]:
     return results
 
 
-async def fetch_html_content(
-    url: str, mode: SearchMode = SearchMode.medium
-) -> SearchSnippets:
+async def fetch_html_content(item: dict[str, str], mode: SearchMode = SearchMode.medium) -> SearchSnippets:
     """
     use aiohttp sync to fetch html content
     :param url:
     :return:
     """
-    timeout = ClientTimeout(total=0.82)
-    async with aiohttp.ClientSession(timeout=timeout) as session:
-        async with session.get(url, allow_redirects=True) as response:
-            html = await response.text(encoding="utf-8") or ""
-            cleaned_body = trafilatura.extract(
-                html,
-                url=url,
-                include_links=False,
-                include_tables=False,
-                include_images=False,
-                include_comments=False,
-                favor_recall=True,  # 更偏向召回，适合通用页面
-            )
-            content = cleaned_body.strip()[: mode.context_size]
-            return SearchSnippets(url=url, title="", content=content)
+    url = item["url"]
+    timeout = ClientTimeout(total=0.70)
+    try:
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.get(url, allow_redirects=True) as response:
+                html = await response.text(encoding="utf-8") or ""
+                result = trafilatura.bare_extraction(
+                    html,
+                    url=url,
+                    include_links=False,
+                    include_tables=False,
+                    include_images=False,
+                    include_comments=False,
+                    favor_recall=True,  # 更偏向召回，适合通用页面
+                )
+                cleaned_body = result.text
+                date = result.date
+                title = result.title
+                content = cleaned_body.strip()[: mode.context_size]
+                return SearchSnippets(url=url, title=title, content=content, error=None, publish_date=date)
+    except Exception as e:
+        logger.error(f"Error fetching HTML content: {e}")
+        return SearchSnippets(url=url, title=item["title"], content=item["content"], error=str(e), publish_date=None)
 
 
 async def run_parser_as_other(data, mode: SearchMode) -> list[SearchSnippets]:
@@ -115,9 +127,11 @@ async def run_parser_as_other(data, mode: SearchMode) -> list[SearchSnippets]:
             allowed_items.append(item)
 
     tasks = [fetch_with_playwright(item, mode) for item in allowed_items[:6]]
-
     results = await asyncio.gather(*tasks, return_exceptions=True)
-    return results
+    results_remain = [
+        SearchSnippets(url=item["url"], title=item["title"], content=item["content"]) for item in allowed_items[6:]
+    ]
+    return results + results_remain
 
 
 @search_router.get("/search")
@@ -140,9 +154,7 @@ async def search_view(
 
     start_ts = time.time()
     try:
-        async with aiohttp.ClientSession(
-            connector=connector, timeout=ClientTimeout(total=5.0)
-        ) as session:
+        async with aiohttp.ClientSession(connector=connector, timeout=ClientTimeout(total=5.0)) as session:
             async with session.get(settings.searxng_url, params=params) as resp:
                 resp.raise_for_status()
                 data = await resp.json()

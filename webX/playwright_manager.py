@@ -1,4 +1,6 @@
 import asyncio
+import time
+
 from playwright.async_api import (
     async_playwright,
     Playwright,
@@ -77,8 +79,8 @@ class PlaywrightManager:
         )
 
         # 设置页面级别的超时时间
-        context.set_default_timeout(10000)  # 10秒超时
-        context.set_default_navigation_timeout(10000)  # 10秒导航超时
+        context.set_default_timeout(30000)  # 30秒超时
+        context.set_default_navigation_timeout(30000)  # 10秒导航超时
 
         return context
 
@@ -112,9 +114,7 @@ class PlaywrightManager:
         else:
             await route.continue_()
 
-    async def run_in_page(
-        self, func: Callable[[Page], Any], timeout: Optional[float] = 30
-    ) -> Any:
+    async def run_in_page(self, func: Callable[[Page], Any], timeout: Optional[float] = 20) -> Any:
         """
         创建新的 context 和 page，运行 func，然后清理资源。
         每次调用都会创建新的 context 和 page，用完即销毁。
@@ -131,12 +131,12 @@ class PlaywrightManager:
         async with self._semaphore:  # 控制并发数
             context: BrowserContext | None = None
             page: Page | None = None
-
+            start_ts = time.time()
+            logger.debug("Creating new context and page")
             try:
                 # 每次都创建新的 context
                 context = await self._create_new_context()
                 page = await context.new_page()
-
 
                 # 优化页面性能
                 await page.add_init_script("""
@@ -159,6 +159,7 @@ class PlaywrightManager:
                 )
 
                 coro_page = func(page)
+                logger.debug(f"context duration: {time.time() - start_ts:.2f}s")
                 return await asyncio.wait_for(coro_page, timeout=timeout)
             finally:
                 # 清理资源：每次用完就关闭 page 和 context

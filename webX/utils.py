@@ -56,9 +56,6 @@ def check_allow_domain(url: str) -> bool:
     return False
 
 
-
-
-
 def timeit_sync(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
@@ -82,7 +79,5 @@ print(sync_example())
 
 if __name__ == "__main__":
     print(
-        check_allow_domain(
-            "https://air.tsinghua.edu.cn/__local/A/F3/79/CC9A0C81875F8B35A4733E36A57_BD4E1211_324F1.pdf"
-        )
+        check_allow_domain("https://air.tsinghua.edu.cn/__local/A/F3/79/CC9A0C81875F8B35A4733E36A57_BD4E1211_324F1.pdf")
     )
