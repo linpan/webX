@@ -126,7 +126,7 @@ async def run_parser_as_other(data, mode: SearchMode) -> list[SearchSnippets]:
         if check_allow_domain(url):
             allowed_items.append(item)
 
-    tasks = [fetch_with_playwright(item, mode) for item in allowed_items[:6]]
+    tasks = [fetch_with_playwright(item, mode) for item in allowed_items[:5]]
     results = await asyncio.gather(*tasks, return_exceptions=True)
     results_remain = [
         SearchSnippets(url=item["url"], title=item["title"], content=item["content"]) for item in allowed_items[6:]
