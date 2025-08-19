@@ -165,12 +165,10 @@ async def search_view(
                 snippets = run_parser_as_low(data)
             case SearchMode.medium:
                 snippets = await run_parser_as_other(data, mode=SearchMode.medium)
-                return snippets
             case SearchMode.high:
                 snippets = await run_parser_as_other(data, mode=SearchMode.high)
-                return snippets
             case _:
-                return data["results"]
+                snippets = data
 
     except aiohttp.ClientResponseError as e:
         logger.error(f"Failed to fetch search results: {e.status}")
