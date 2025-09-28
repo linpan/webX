@@ -89,7 +89,7 @@ async def fetch_html_content(item: dict[str, str], mode: SearchMode = SearchMode
     :return:
     """
     url = item["url"]
-    timeout = ClientTimeout(total=0.70)
+    timeout = ClientTimeout(total=1.2)
     try:
         async with aiohttp.ClientSession(timeout=timeout) as session:
             async with session.get(url, allow_redirects=True) as response:
@@ -126,12 +126,9 @@ async def run_parser_as_other(data, mode: SearchMode) -> list[SearchSnippets]:
         if check_allow_domain(url):
             allowed_items.append(item)
 
-    tasks = [fetch_with_playwright(item, mode) for item in allowed_items[:4]]
+    tasks = [fetch_with_playwright(item, mode) for item in allowed_items]
     results = await asyncio.gather(*tasks, return_exceptions=True)
-    results_remain = [
-        SearchSnippets(url=item["url"], title=item["title"], content=item["content"]) for item in allowed_items[6:]
-    ]
-    return results + results_remain
+    return results
 
 
 @search_router.get("/search")
