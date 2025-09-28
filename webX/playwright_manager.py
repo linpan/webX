@@ -79,8 +79,8 @@ class PlaywrightManager:
         )
 
         # 设置页面级别的超时时间
-        context.set_default_timeout(30000)  # 30秒超时
-        context.set_default_navigation_timeout(30000)  # 10秒导航超时
+        context.set_default_timeout(45000)  # 30秒超时
+        context.set_default_navigation_timeout(45000)  # 10秒导航超时
 
         return context
 

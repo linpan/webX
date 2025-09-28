@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     user_agent: str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.7258.68 Safari/537.36"
     viewport_width: int = 1280
     viewport_height: int = 720
-    page_timeout: int = 5000  # 5s
+    page_timeout: int = 10000  # 10s
     # 扩展阻止的资源类型
     blocked_resources: tuple = (
         "image",
