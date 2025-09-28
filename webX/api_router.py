@@ -122,7 +122,7 @@ async def fetch_html_content(item: dict[str, str], mode: SearchMode = SearchMode
                 content = cleaned_body.strip()[: mode.context_size]
                 return SearchSnippets(url=url, title=title, content=content, error=None, publish_date=date)
     except Exception as e:
-        logger.error(f"Error fetching HTML content: {e}")
+        logger.error(f"Error fetching HTML content:  {item}")
         return SearchSnippets(url=url, title=item["title"], content=item["content"], error=str(e), publish_date=None)
 
 
