@@ -117,6 +117,7 @@ async def fetch_html_content(item: dict[str, str], mode: SearchMode = SearchMode
                     favor_recall=True,  # 更偏向召回，适合通用页面
                 )
                 cleaned_body = result.text
+                print(cleaned_body)
                 date = result.date or ""
                 title = result.title or ""
                 content = cleaned_body.strip()[: mode.context_size]
