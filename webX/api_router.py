@@ -1,7 +1,8 @@
 import asyncio
-
+import time
 import trafilatura
 from aiohttp import ClientTimeout
+from fake_useragent import UserAgent
 from fastapi import APIRouter
 from fastapi.params import Query
 from loguru import logger
@@ -10,12 +11,11 @@ import aiohttp
 from typing import Annotated
 from webX.config import settings
 from aiohttp import TCPConnector
-
 from webX.models import SearchParams, SearchSnippets, SearchResponse, SearchMode
 from webX.playwright_manager import playwright_manager
 from webX.utils import check_allow_domain, timeit_sync
 
-search_router = APIRouter(prefix='/v1')
+search_router = APIRouter(prefix="/v1")
 
 
 class FetchResult(BaseModel):
@@ -48,7 +48,7 @@ async def fetch_with_playwright(item: dict, mode: SearchMode = SearchMode.medium
                 include_comments=False,
                 favor_recall=True,  # 更偏向召回，适合通用页面
             )
-            title = result.title
+            title = result.title or title
             cleaned_body = result.text
             date = result.date
             logger.info(f"fetch  {url} content: {cleaned_body[:100]}")
@@ -89,9 +89,22 @@ async def fetch_html_content(item: dict[str, str], mode: SearchMode = SearchMode
     :return:
     """
     url = item["url"]
-    timeout = ClientTimeout(total=0.70)
+    timeout = ClientTimeout(total=1.2)
+    headers = {
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+        "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Connection": "keep-alive",
+        "Upgrade-Insecure-Requests": "1",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "none",
+        "Cache-Control": "max-age=0",
+    }
+    ua = UserAgent()
+    headers["User-Agent"] = ua.random
     try:
-        async with aiohttp.ClientSession(timeout=timeout) as session:
+        async with aiohttp.ClientSession(timeout=timeout, headers=headers) as session:
             async with session.get(url, allow_redirects=True) as response:
                 html = await response.text(encoding="utf-8") or ""
                 result = trafilatura.bare_extraction(
@@ -103,9 +116,9 @@ async def fetch_html_content(item: dict[str, str], mode: SearchMode = SearchMode
                     include_comments=False,
                     favor_recall=True,  # 更偏向召回，适合通用页面
                 )
-                cleaned_body = result.text
-                date = result.date
-                title = result.title
+                cleaned_body = result.text or item["content"]
+                date = result.date or ""
+                title = result.title or ""
                 content = cleaned_body.strip()[: mode.context_size]
                 return SearchSnippets(url=url, title=title, content=content, error=None, publish_date=date)
     except Exception as e:
@@ -126,12 +139,27 @@ async def run_parser_as_other(data, mode: SearchMode) -> list[SearchSnippets]:
         if check_allow_domain(url):
             allowed_items.append(item)
 
-    tasks = [fetch_with_playwright(item, mode) for item in allowed_items[:4]]
-    results = await asyncio.gather(*tasks, return_exceptions=True)
-    results_remain = [
-        SearchSnippets(url=item["url"], title=item["title"], content=item["content"]) for item in allowed_items[6:]
-    ]
-    return results + results_remain
+    # 区分静态HTML页面和其他页面
+    static_html_items = []
+    dynamic_items = []
+
+    for item in allowed_items:
+        url = item["url"].lower()
+        # 检查是否为静态HTML页面
+        if any(url.endswith(ext) for ext in [".html", ".htm", ".shtml"]):
+            static_html_items.append(item)
+        else:
+            dynamic_items.append(item)
+
+    static_tasks = [fetch_html_content(item, mode) for item in static_html_items]
+
+    dynamic_tasks = [fetch_with_playwright(item, mode) for item in dynamic_items]
+
+    all_tasks = static_tasks + dynamic_tasks
+    results = await asyncio.gather(*all_tasks, return_exceptions=True)
+
+    results_remain = [SearchSnippets(url=item["url"], title=item["title"], content=item["content"]) for item in results]
+    return results_remain
 
 
 @search_router.get("/search")
@@ -150,7 +178,6 @@ async def search_view(
         "engines": "google",
     }
     connector = TCPConnector(limit=100, limit_per_host=15, ssl=False)
-    import time
 
     start_ts = time.time()
     try:
