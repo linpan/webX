@@ -146,7 +146,7 @@ async def search_view(
         "lang": "zh-CN",
         "format": "json",
         "safesearch": "2",
-        "engines": "baidu",
+        "engines": "duckduckgo",
     }
     connector = TCPConnector(limit=100, limit_per_host=15, ssl=False)
     import time
