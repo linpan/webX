@@ -136,7 +136,6 @@ async def run_parser_as_other(data, mode: SearchMode) -> list[SearchSnippets]:
 @search_router.get("/search")
 async def search_view(
     q: str = Query(default="K字签证"),
-    engine:str = Query(default="mullvadleta,yahoo,presearch"),
     mode: Annotated[SearchMode, Query()] = SearchMode.low,
 ):
     """
@@ -147,7 +146,7 @@ async def search_view(
         "lang": "zh-CN",
         "format": "json",
         "safesearch": "2",
-        "engines": engine,
+        "engines": "duckduckgo",
     }
     connector = TCPConnector(limit=100, limit_per_host=15, ssl=False)
     import time

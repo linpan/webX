@@ -22,8 +22,6 @@ dependencies = [
     "playwright>=1.55.0",
     "greenlet>=3.2.4",
     "beautifulsoup4>=4.14.2",
-    "search-engine-parser>=0.6.1",
-    "playwright-stealth>=2.0.0",
 ]
 
 [dependency-groups]
