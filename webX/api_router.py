@@ -36,7 +36,7 @@ async def fetch_with_playwright(item: dict, mode: SearchMode = SearchMode.medium
         @timeit_sync
         async def work(page):
             await page.goto(url, timeout=25_000, wait_until="domcontentloaded")
-            title = await page.title()
+            title = item.get("title", "未知标题")
             html = await page.content()
 
             result = trafilatura.bare_extraction(
@@ -48,7 +48,6 @@ async def fetch_with_playwright(item: dict, mode: SearchMode = SearchMode.medium
                 include_comments=False,
                 favor_recall=True,  # 更偏向召回，适合通用页面
             )
-            title = result.title
             cleaned_body = result.text
             date = result.date
             logger.info(f"fetch  {url} content: {cleaned_body[:100]}")
