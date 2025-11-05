@@ -125,7 +125,7 @@ async def run_parser_as_other(data, mode: SearchMode) -> list[SearchSnippets]:
         if check_allow_domain(url):
             allowed_items.append(item)
 
-    tasks = [fetch_with_playwright(item, mode) for item in allowed_items[:5]]
+    tasks = [fetch_with_playwright(item, mode) for item in allowed_items[:8]]
     results = await asyncio.gather(*tasks, return_exceptions=True)
     results_remain = [
         SearchSnippets(url=item["url"], title=item["title"], content=item["content"]) for item in allowed_items[5:]
@@ -136,7 +136,7 @@ async def run_parser_as_other(data, mode: SearchMode) -> list[SearchSnippets]:
 @search_router.get("/search")
 async def search_view(
     q: str = Query(default="K字签证"),
-    engine:str = Query(default="mullvadleta,yahoo,presearch"),
+    engine:str = Query(default="mullvadleta"),
     mode: Annotated[SearchMode, Query()] = SearchMode.low,
 ):
     """
