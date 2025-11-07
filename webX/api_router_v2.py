@@ -8,14 +8,13 @@ from loguru import logger
 from pydantic import BaseModel
 import aiohttp
 from typing import Annotated
-from webX.config import settings
 from aiohttp import TCPConnector
 
-from webX.models import SearchParams, SearchSnippets, SearchResponse, SearchMode
+from webX.models import SearchSnippets, SearchResponse, SearchMode
 from webX.playwright_manager import playwright_manager
 from webX.utils import check_allow_domain, timeit_sync
 
-search_router = APIRouter(prefix='/v1')
+bing_search_router = APIRouter(prefix='/v2')
 
 
 class FetchResult(BaseModel):
@@ -125,7 +124,7 @@ async def run_parser_as_other(data, mode: SearchMode) -> list[SearchSnippets]:
         if check_allow_domain(url):
             allowed_items.append(item)
 
-    tasks = [fetch_with_playwright(item, mode) for item in allowed_items[:5]]
+    tasks = [fetch_with_playwright(item, mode) for item in allowed_items[:10]]
     results = await asyncio.gather(*tasks, return_exceptions=True)
     results_remain = [
         SearchSnippets(url=item["url"], title=item["title"], content=item["content"]) for item in allowed_items[5:]
@@ -133,7 +132,7 @@ async def run_parser_as_other(data, mode: SearchMode) -> list[SearchSnippets]:
     return results + results_remain
 
 
-@search_router.get("/search")
+@bing_search_router.get("/search")
 async def search_view(
     q: str = Query(default="K字签证"),
     mode: Annotated[SearchMode, Query()] = SearchMode.low,
@@ -141,33 +140,35 @@ async def search_view(
     """
     use aiohttp sync to fetch searxng search results
     """
-    params: SearchParams = {
-        "q": q,
-        "lang": "zh-CN",
-        "format": "json",
-        "safesearch": "2",
-        "engines": "duckduckgo",
-    }
+    body = {
+    "keyword": q,
+    "sites": []
+}
+    url = "https://ai.bobfintech.com.cn/chats-online/getBingSearchResult"
+
     connector = TCPConnector(limit=100, limit_per_host=15, ssl=False)
     import time
 
     start_ts = time.time()
+    snippets = []
     try:
         async with aiohttp.ClientSession(connector=connector, timeout=ClientTimeout(total=5.0)) as session:
-            async with session.get(settings.searxng_url, params=params) as resp:
+            async with session.post(url, json=body) as resp:
                 resp.raise_for_status()
                 data = await resp.json()
                 data = data["results"]
-
+                new_data = []
+                for item in data:
+                    new_data.append({"url": item["href"], "title": item["title"], "content": item["summary"], "score":0.420})
         match mode:
             case SearchMode.low:
-                snippets = run_parser_as_low(data)
+                snippets = run_parser_as_low(new_data)
             case SearchMode.medium:
-                snippets = await run_parser_as_other(data, mode=SearchMode.medium)
+                snippets = await run_parser_as_other(new_data, mode=SearchMode.medium)
             case SearchMode.high:
-                snippets = await run_parser_as_other(data, mode=SearchMode.high)
+                snippets = await run_parser_as_other(new_data, mode=SearchMode.high)
             case _:
-                snippets = data
+                snippets = new_data
 
     except aiohttp.ClientResponseError as e:
         logger.error(f"Failed to fetch search results: {e.status}")
