@@ -8,7 +8,6 @@ from loguru import logger
 from webX.api_router_v2 import bing_search_router
 from webX.playwright_manager import playwright_manager
 
-from webX.api_router import search_router
 
 
 
@@ -32,7 +31,8 @@ app = FastAPI(lifespan=lifespan, default_response_class=ORJSONResponse)
 
 app.add_middleware(GZipMiddleware, minimum_size=2048)
 
-app.include_router(search_router)
+# app.include_router(search_router)
+
 app.include_router(bing_search_router)
 
 

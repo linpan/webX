@@ -14,7 +14,7 @@ from webX.models import SearchSnippets, SearchResponse, SearchMode
 from webX.playwright_manager import playwright_manager
 from webX.utils import check_allow_domain, timeit_sync
 
-bing_search_router = APIRouter(prefix='/v2')
+bing_search_router = APIRouter(prefix='/v1')
 
 
 class FetchResult(BaseModel):
