@@ -8,11 +8,10 @@ from loguru import logger
 from pydantic import BaseModel
 import aiohttp
 from typing import Annotated
-from webX.config import settings
 from aiohttp import TCPConnector
 
-from webX.models import SearchParams, SearchSnippets, SearchResponse, SearchMode
-from webX.playwright_manager import playwright_manager
+from webX.models import SearchSnippets, SearchResponse, SearchMode
+from webX.playwright_manager import playwright_manager, settings
 from webX.utils import check_allow_domain, timeit_sync
 
 search_router = APIRouter(prefix='/v1')
@@ -68,14 +67,14 @@ async def fetch_with_playwright(item: dict, mode: SearchMode = SearchMode.medium
 
 def run_parser_as_low(data) -> list[SearchSnippets]:
     results: list[SearchSnippets] = []
-
+    print(1111, data)
     for item in data:
         results.append(
             {
                 "url": item["url"],
                 "title": item["title"],
                 "content": item["content"],
-                "score": f"{item['score']:.3f}",
+                "score": item.get("score", 0.3),
             }
         )
     return results
@@ -133,7 +132,7 @@ async def run_parser_as_other(data, mode: SearchMode) -> list[SearchSnippets]:
     return results + results_remain
 
 
-@search_router.get("/search")
+@search_router.get("/search2")
 async def search_view(
     q: str = Query(default="K字签证"),
     engine:str = Query(default="mullvadleta"),
@@ -142,12 +141,8 @@ async def search_view(
     """
     use aiohttp sync to fetch searxng search results
     """
-    params: SearchParams = {
-        "q": q,
-        "lang": "zh-CN",
-        "format": "json",
-        "safesearch": "2",
-        "engines": engine,
+    params =  {
+        "query": q,
     }
     connector = TCPConnector(limit=100, limit_per_host=15, ssl=False)
     import time
@@ -157,18 +152,22 @@ async def search_view(
         async with aiohttp.ClientSession(connector=connector, timeout=ClientTimeout(total=5.0)) as session:
             async with session.get(settings.searxng_url, params=params) as resp:
                 resp.raise_for_status()
-                data = await resp.json()
-                data = data["results"]
+                results = await resp.json()
+                data = results["results"]
+                new_data = []
+                for item in data:
+                    new_data.append({"url": item["link"], "title": item["title"], "content": item["content"] +f'来源: {item["source"]}', "score":"0.420"})
+
 
         match mode:
             case SearchMode.low:
-                snippets = run_parser_as_low(data)
+                snippets = run_parser_as_low(new_data)
             case SearchMode.medium:
-                snippets = await run_parser_as_other(data, mode=SearchMode.medium)
+                snippets = await run_parser_as_other(new_data, mode=SearchMode.medium)
             case SearchMode.high:
-                snippets = await run_parser_as_other(data, mode=SearchMode.high)
+                snippets = await run_parser_as_other(new_data, mode=SearchMode.high)
             case _:
-                snippets = data
+                snippets = new_data
 
     except aiohttp.ClientResponseError as e:
         logger.error(f"Failed to fetch search results: {e.status}")

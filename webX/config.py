@@ -58,7 +58,7 @@ class Settings(BaseSettings):
         "--disable-blink-features=AutomationControlled",  # 减少检测
         "--disable-features=TranslateUI,VizDisplayCompositor,AudioServiceOutOfProcess",
     )
-    searxng_url: str = "http://47.79.94.250:8080/search"
+    searxng_url: str = "http://47.79.94.250:8080/v1/search"
     allowed_domains: tuple = ("cn", "com", "org", "gov")
     ip_blacklist: tuple = (
         "bilibili.com",
