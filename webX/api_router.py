@@ -132,7 +132,7 @@ async def run_parser_as_other(data, mode: SearchMode) -> list[SearchSnippets]:
     return results + results_remain
 
 
-@search_router.get("/search2")
+@search_router.get("/search")
 async def search_view(
     q: str = Query(default="K字签证"),
     engine:str = Query(default="mullvadleta"),
